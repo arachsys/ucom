@@ -3,17 +3,17 @@ ucom
 
 ucom is a serial terminal in the style of cu, minicom and GNU screen, but
 without legacy modem control, file transfer or a nested terminal emulation
-layer. In fewer than 140 lines of C, it provides a clean interactive
+layer. In fewer than 150 lines of C, it provides a clean interactive
 session with a serial port, aiming for both correctness and efficiency.
 
 
 Usage
 -----
 
-Run with a serial device as argument, it opens the device, switches
+Run with a serial port as argument, it switches both this port and
 the local terminal into raw mode, then bidirectionally copies between
 the two. The local quit key (typically ^\ on Linux and BSD) can be used
-to disconnect, restore the local terminal settings and exit.
+to disconnect, restore the terminal settings and exit.
 
 To set the baud rate and line characteristics, use stty on the serial
 port before running ucom. For example,

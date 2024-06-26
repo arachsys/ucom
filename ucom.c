@@ -11,7 +11,7 @@
 
 static int events[2];
 static struct pollfd fd[3];
-static struct termios saved;
+static struct termios saved[2];
 
 static size_t head[2], tail[2];
 static char data[2][PIPE_BUF];
@@ -22,24 +22,32 @@ static void quit(int signal) {
 }
 
 static void restore(void) {
-  tcsetattr(fd[0].fd, TCSADRAIN, &saved);
+  for (int i = 0; i < 2; i++)
+    tcsetattr(fd[i].fd, TCSADRAIN, saved + i);
   write(fd[0].fd, "\r", 1);
 }
 
 static void setup(void) {
-  struct termios termios;
+  for (int i = 0; i < 2; i++)
+    if (tcgetattr(fd[i].fd, saved + i) < 0)
+      err(1, "tcgetattr");
 
-  if (tcgetattr(fd[0].fd, &termios) < 0)
-    err(1, "tcgetattr");
-  saved = termios;
+  for (int i = 0; i < 2; i++) {
+    struct termios termios = saved[i];
 
-  cfmakeraw(&termios);
-  termios.c_lflag |= ISIG;
-  termios.c_cc[VINTR] = _POSIX_VDISABLE;
-  termios.c_cc[VSUSP] = _POSIX_VDISABLE;
+    cfmakeraw(&termios);
+    termios.c_cc[VMIN] = 1;
+    termios.c_cc[VTIME] = 0;
 
-  if (tcsetattr(fd[0].fd, TCSADRAIN, &termios) < 0)
-    err(1, "tcsetattr");
+    if (i == 0) {
+      termios.c_lflag |= ISIG;
+      termios.c_cc[VINTR] = _POSIX_VDISABLE;
+      termios.c_cc[VSUSP] = _POSIX_VDISABLE;
+    }
+
+    if (tcsetattr(fd[i].fd, TCSAFLUSH, &termios) < 0)
+      restore(), err(1, "tcsetattr");
+  }
 }
 
 static int get(int src, int dst) {
