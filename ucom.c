@@ -9,14 +9,12 @@
 #include <termios.h>
 #include <unistd.h>
 
-static struct buffer {
-  size_t head, tail;
-  char data[PIPE_BUF];
-} rx, tx;
-
 static int events[2];
 static struct pollfd fd[3];
 static struct termios saved;
+
+static size_t head[2], tail[2];
+static char data[2][PIPE_BUF];
 
 static void quit(int signal) {
   if (signal)
@@ -44,32 +42,34 @@ static void setup(void) {
     err(1, "tcsetattr");
 }
 
-static int get(struct buffer *b, struct pollfd *in, struct pollfd *out) {
-  ssize_t count = read(in->fd, b->data + b->head, sizeof b->data - b->head);
+static int get(int src, int dst) {
+  ssize_t count = read(fd[src].fd, data[src] + head[src],
+    sizeof data[src] - head[src]);
 
   if (count < 0)
     return errno != EAGAIN && errno != EINTR;
-  b->head += count;
+  head[src] += count;
 
-  if (b->head >= sizeof b->data)
-    in->events &= ~POLLIN;
-  if (b->head > b->tail)
-    out->events |= POLLOUT;
+  if (head[src] >= sizeof data[src])
+    fd[src].events &= ~POLLIN;
+  if (head[src] > tail[dst])
+    fd[dst].events |= POLLOUT;
 
   return count == 0;
 }
 
-static int put(struct buffer *b, struct pollfd *in, struct pollfd *out) {
-  ssize_t count = write(out->fd, b->data + b->tail, b->head - b->tail);
+static int put(int src, int dst) {
+  ssize_t count = write(fd[dst].fd, data[src] + tail[dst],
+    head[src] - tail[dst]);
 
   if (count < 0)
     return errno != EAGAIN && errno != EINTR;
-  b->tail += count;
+  tail[dst] += count;
 
-  if (b->tail >= b->head) {
-    b->head = b->tail = 0;
-    in->events |= POLLIN;
-    out->events &= ~POLLOUT;
+  if (tail[dst] >= head[src]) {
+    head[src] = tail[dst] = 0;
+    fd[src].events |= POLLIN;
+    fd[dst].events &= ~POLLOUT;
   }
 
   return 0;
@@ -118,14 +118,14 @@ int main(int argc, char **argv) {
       if (fd[i].revents & (POLLERR | POLLNVAL))
         restore(), errx(1, "Failed to poll fd %d", fd[i].fd);
 
-    if (fd[0].revents & (POLLIN | POLLHUP) && get(&tx, fd, fd + 1))
+    if (fd[0].revents & (POLLIN | POLLHUP) && get(0, 1))
       restore(), errx(1, "Failed to read from /dev/tty");
-    if (fd[1].revents & (POLLIN | POLLHUP) && get(&rx, fd + 1, fd))
+    if (fd[1].revents & (POLLIN | POLLHUP) && get(1, 0))
       restore(), errx(1, "Failed to read from %s", argv[1]);
 
-    if (fd[0].revents & POLLOUT && put(&rx, fd + 1, fd))
+    if (fd[0].revents & POLLOUT && put(1, 0))
       restore(), errx(1, "Failed to write to /dev/tty");
-    if (fd[1].revents & POLLOUT && put(&tx, fd, fd + 1))
+    if (fd[1].revents & POLLOUT && put(0, 1))
       restore(), errx(1, "Failed to write to %s", argv[1]);
   }
 
