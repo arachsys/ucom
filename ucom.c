@@ -38,6 +38,7 @@ static void setup(void) {
     cfmakeraw(&termios);
     termios.c_cc[VMIN] = 1;
     termios.c_cc[VTIME] = 0;
+    termios.c_cflag |= CLOCAL;
 
     if (i == 0) {
       termios.c_lflag |= ISIG;

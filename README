@@ -46,7 +46,8 @@ location, or make, strip and copy the binary into place manually.
 
 The program should be portable to any reasonably modern POSIX system,
 including Linux and BSD. However, macOS poll() still fails on character
-devices and this longstanding bug will break ucom.
+devices and this longstanding bug will break ucom. A branch of ucom
+modified to use the ugly legacy select() interface is available for macOS.
 
 Please report any problems or bugs to Chris Webb <chris@arachsys.com>.
 
