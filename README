@@ -6,6 +6,12 @@ without legacy modem control, file transfer or a nested terminal emulation
 layer. In fewer than 150 lines of C, it provides a clean interactive
 session with a serial port, aiming for both correctness and efficiency.
 
+This is a modified version of ucom ported to use the ugly legacy select()
+interface to work around a longstanding bug in macOS poll(), which does not
+work on character devices like serial interfaces and pseudo-terminals.
+On a competently-maintained operating system, you probably want the
+standard version of ucom instead.
+
 
 Usage
 -----
@@ -45,9 +51,8 @@ Alternatively, you can set DESTDIR and/or BINDIR to install in a different
 location, or make, strip and copy the binary into place manually.
 
 The program should be portable to any reasonably modern POSIX system,
-including Linux and BSD. However, macOS poll() still fails on character
-devices and this longstanding bug will break ucom. A branch of ucom
-modified to use the ugly legacy select() interface is available for macOS.
+including Linux and BSD, but this special branch using select() is only
+necessary for macOS where poll() is badly broken.
 
 Please report any problems or bugs to Chris Webb <chris@arachsys.com>.
 
